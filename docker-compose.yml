@@ -1,0 +1,7 @@
+nomad:
+    build: .
+    container_name: "nomad"
+    net: "host"
+    volumes:
+        - .:/pwd
+        - /var/run/docker.sock:/var/run/docker.sock
