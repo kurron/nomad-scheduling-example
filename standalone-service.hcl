@@ -1,4 +1,4 @@
-job "standalone-batch" {
+job "standalone-service" {
     // Controls if the entire set of tasks in the job must be placed atomically or if they can be scheduled incrementally.
     all_at_once = false
 
@@ -19,7 +19,13 @@ job "standalone-batch" {
 
     // Specifies the job type and switches which scheduler is used. Nomad provides the service, system and batch schedulers, 
     // and defaults to service. 
-    type = "batch"
+    type = "service"
+
+    // Restrict our job to only linux. We can specify multiple constraints as needed.
+    constraint {
+        attribute = "$attr.kernel.name"
+        value = "linux"
+    }
 
     // Specifies the task's update strategy. When omitted, rolling updates are disabled.
     update {
@@ -32,7 +38,7 @@ job "standalone-batch" {
     }
 
     // This can be specified multiple times, to add a task to the job.
-    task "echo-environment" {
+    task "web-server" {
 
         // Specifies the task driver that should be used to run the task.
         driver = "docker"
@@ -44,9 +50,7 @@ job "standalone-batch" {
         // A map of key/value configuration passed into the driver to start the task. The details of configurations are 
         // specific to each driver.
         config {
-            image = "ubuntu:latest"
-            command = "/bin/bash"
-            args =["echo", "$nomad.ip", "$DATACENTER", "$PROFILE"]
+            image = "nginx:latest"
             labels {
                 realm = "Experiment"
                 managed-by = "Nomad"
@@ -55,12 +59,59 @@ job "standalone-batch" {
             ipc_mode = "none"
             pid_mode = ""
             uts_mode = ""
-            network_mode = "host"
+            network_mode = "bridge"
 #           host_name = "does not make sense when using host networking"
             dns_servers = ["8.8.8.8", "8.8.4.4"] 
             dns_search_domains = ["kurron.org", "transparent.com"] 
-            port_map {}
+            port_map {
+                insecure = 80
+                secure = 443
+            }
             auth {}
+        }
+
+        // Nomad integrates with Consul for service discovery. A service block represents a routable and discoverable 
+        // service on the network. Nomad automatically registers when a task is started and de-registers it when the task 
+        // transitons to the dead state.
+        service {
+
+            // Nomad automatically determines the name of a Task. By default the name of a service is 
+            // $(job-name)-$(task-group)-$(task-name). Users can explicitly name the service by specifying this option. If 
+            // multiple services are defined for a Task then only one task can have the default name, all the services have to be 
+            // explicitly named. Users can add the following to the service names: ${JOB}, ${TASKGROUP}, ${TASK}, ${BASE}. Nomad 
+            // will replace them with the appropriate value of the Job, Task Group and Task names while registering the Job. ${BASE} 
+            // expands to ${JOB}-${TASKGROUP}-${TASK}.
+            name = "${JOB}-nginx"
+
+            // A list of tags associated with this Service.
+            tags = ["experiment", "proxy"]
+
+            // The port indicates the port associated with the Service. Users are required to specify a valid port label here 
+            // which they have defined in the resources block. This could be a label to either a dynamic or a static port. If an 
+            // incorrect port label is specified, Nomad doesn't register the service with Consul.
+            port = "insecure"
+
+            // A check block defines a health check associated with the service. Multiple check blocks are allowed for a service. 
+            // Nomad currently supports only the http and tcp Consul Checks.
+            check {
+                // This indicates the check types supported by Nomad. Valid options are currently http and tcp. In the future 
+                // Nomad will add support for more Consul checks.
+                type = "tcp"
+
+                // This indicates the frequency of the health checks that Consul with perform.
+                delay = "30s"
+
+                // This indicates how long Consul will wait for a health check query to succeed.
+                timeout = "2s"
+
+                // The path of the http endpoint which Consul will query to query the health of a service if the type of the check 
+                // is http. Nomad will add the ip of the service and the port, users are only required to add the relative url of 
+                // the health check endpoint.
+                path = "/"
+
+                // This indicates the protocol for the http checks. Valid options are http and https. We default it to http.
+                protocol = "http"
+            }
         }
 
         // A map of key/value representing environment variables that will be passed along to the running process. Nomad variables 
@@ -91,6 +142,12 @@ job "standalone-batch" {
             network {
                 // The number of MBits in bandwidth required.
                 mbits = 100
+                port "insecure" {
+#                   static = 80
+                }
+                port "secure" {
+#                   static = 443
+                }
             }
         }
 
