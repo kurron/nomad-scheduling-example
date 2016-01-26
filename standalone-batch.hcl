@@ -21,6 +21,12 @@ job "standalone-batch" {
     // and defaults to service. 
     type = "batch"
 
+    // Restrict our job to only linux. We can specify multiple constraints as needed.
+    constraint {
+        attribute = "$attr.kernel.name"
+        value = "linux"
+    }
+
     // Specifies the task's update strategy. When omitted, rolling updates are disabled.
     update {
         // Specifies the number of tasks that can be updated at the same time.
@@ -32,7 +38,7 @@ job "standalone-batch" {
     }
 
     // This can be specified multiple times, to add a task to the job.
-    task "echo-environment" {
+    task "batch-example" {
 
         // Specifies the task driver that should be used to run the task.
         driver = "docker"
@@ -45,8 +51,8 @@ job "standalone-batch" {
         // specific to each driver.
         config {
             image = "ubuntu:latest"
-            command = "/bin/bash"
-            args =["echo", "$nomad.ip", "$DATACENTER", "$PROFILE"]
+            command = "bash"
+            args =["--version"]
             labels {
                 realm = "Experiment"
                 managed-by = "Nomad"
@@ -55,7 +61,7 @@ job "standalone-batch" {
             ipc_mode = "none"
             pid_mode = ""
             uts_mode = ""
-            network_mode = "host"
+            network_mode = "none"
 #           host_name = "does not make sense when using host networking"
             dns_servers = ["8.8.8.8", "8.8.4.4"] 
             dns_search_domains = ["kurron.org", "transparent.com"] 
