@@ -85,6 +85,7 @@ job "example" {
 				network {
 					mbits = 10
 					port "db" {
+						static = 6379
 					}
 				}
 			}
