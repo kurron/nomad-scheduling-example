@@ -57,10 +57,10 @@ job "example" {
 
 			# Configure Docker driver with the image
 			config {
-				image = "redis:latest"
+				image = "redis:2.8"
 				network_mode = "host"
 				port_map {
-					db = 6379
+#					db = 6379
 				}
 			}
 
